@@ -88,6 +88,177 @@ def exception_handler(e, repo_info: RepoInfo, _return: bool = False):
         # mark it as "failed to clone" so we don't deal with it anymore
         return PipelineResult(repo_info, clone_success=False)
 
+# def clone_and_assemble(repo_info: RepoInfo, clone_folder: str, binary_folder: str, archive_folder: str,
+#                       recursive_clone: bool = True,
+#                       clone_timeout: Optional[float] = None, compile_timeout: Optional[float] = None,
+#                       force_reclone: bool = False, force_recompile: bool = False, docker_batch_compile: bool = True,
+#                       max_archive_size: Optional[int] = None, compression_type: str = "gzip",
+#                       record_libraries: bool = False, record_metainfo: bool = False,
+#                       gcc_override_flags: Optional[str] = None) -> PipelineResult):
+#     repo_full_name = f"{repo_info.repo_owner}/{repo_info.repo_name}"
+#     repo_folder_name = f"{repo_info.repo_owner}_____{repo_info.repo_name}"
+#     repo_path = os.path.join(clone_folder, repo_folder_name)
+#     build_root = os.path.join(clone_folder, repo_folder_name)
+#     if compression_type == "xz":
+#         archive_extension = ".tar.xz"
+#         tar_type_flag = "J"
+#     elif compression_type == "gzip":
+#         archive_extension = ".tar.gz"
+#         tar_type_flag = "z"
+#     else:
+#         raise ValueError(f"Invalid compression type '{compression_type}'")
+#     archive_path = os.path.abspath(os.path.join(archive_folder, f"{repo_full_name}{archive_extension}"))
+
+#     repo_entry = repo_info.db_result
+#     clone_success = None
+
+#     # Skip repos that are fully processed
+#     if (repo_entry is not None and
+#             (repo_entry["clone_successful"] and not force_reclone) and
+#             (repo_entry["compiled"] and not force_recompile)):
+#         return PipelineResult(repo_info)
+
+#     # Stage 1: Cloning from GitHub.
+#     if not force_reclone and os.path.exists(archive_path):
+#         # Extract the archive instead of cloning.
+#         try:
+#             flutes.run_command(["tar", f"x{tar_type_flag}f", archive_path], timeout=clone_timeout, cwd=clone_folder)
+#             flutes.log(f"{repo_full_name} extracted from archive", "success")
+#         except (subprocess.TimeoutExpired, subprocess.CalledProcessError) as e:
+#             flutes.log(f"Unknown error when extracting {repo_full_name}. Captured output: '{e.output}'", "error")
+#             shutil.rmtree(repo_path)
+#             return PipelineResult(repo_info)  # return dummy info
+#         repo_size = flutes.get_folder_size(repo_path)
+#     elif (repo_entry is None or  # not processed
+#           force_reclone or
+#           (repo_entry["clone_successful"] and  # not compiled
+#            (not repo_entry["compiled"] or force_recompile) and not os.path.exists(repo_path))):
+#         clone_result = ghcc.clone(
+#             repo_info.repo_owner, repo_info.repo_name, clone_folder=clone_folder, folder_name=repo_folder_name,
+#             timeout=clone_timeout, skip_if_exists=False, recursive=recursive_clone)
+#         clone_success = clone_result.success
+#         if not clone_result.success:
+#             if clone_result.error_type is CloneErrorType.FolderExists:
+#                 flutes.log(f"{repo_full_name} skipped because folder exists", "warning")
+#             elif clone_result.error_type is CloneErrorType.PrivateOrNonexistent:
+#                 flutes.log(f"Failed to clone {repo_full_name} because repository is private or nonexistent", "warning")
+#             else:
+#                 if clone_result.error_type is CloneErrorType.Unknown:
+#                     msg = f"Failed to clone {repo_full_name} with unknown error"
+#                 else:  # CloneErrorType.Timeout
+#                     msg = f"Time expired ({clone_timeout}s) when attempting to clone {repo_full_name}"
+#                 if clone_result.captured_output is not None:
+#                     msg += f". Captured output: '{clone_result.captured_output!r}'"
+#                 flutes.log(msg, "error")
+
+#                 if clone_result.error_type is CloneErrorType.Unknown:
+#                     return PipelineResult(repo_info)  # return dummy info
+
+#             return PipelineResult(repo_info, clone_success=clone_success)
+
+#         elif clone_result.error_type is CloneErrorType.SubmodulesFailed:
+#             msg = f"Submodules in {repo_full_name} ignored due to error"
+#             if clone_result.captured_output is not None:
+#                 msg += f". Captured output: '{clone_result.captured_output!r}'"
+#             flutes.log(msg, "warning")
+
+#         repo_size = flutes.get_folder_size(repo_path)
+#         flutes.log(f"{repo_full_name} successfully cloned ({clone_result.time:.2f}s, "
+#                    f"{flutes.readable_size(repo_size)})", "success")
+#     else:
+#         if not repo_entry["clone_successful"]:
+#             return PipelineResult(repo_info)  # return dummy info
+#         repo_size = flutes.get_folder_size(repo_path)
+
+#     c_files = None
+#     libraries = None
+#     meta_info: Optional[PipelineMetaInfo] = None
+#     if not repo_entry or not repo_entry["compiled"] or force_recompile:
+#         # # SPECIAL CHECK: Do not attempt to compile OS kernels!
+#         # kernel_name = None
+#         # if contains_in_file(os.path.join(repo_path, "README"), "Linux kernel release"):
+#         #     kernel_name = "Linux"
+#         # elif contains_in_file(os.path.join(repo_path, "README"), "FreeBSD source directory"):
+#         #     kernel_name = "FreeBSD"
+#         # if kernel_name is not None:
+#         #     shutil.rmtree(repo_path)
+#         #     ghcc.log(f"Found {kernel_name} kernel in {repo_full_name}, will not attempt to compile. "
+#         #              f"Repository deleted", "warning")
+#         #     return PipelineResult(repo_info, clone_success=clone_success, makefiles=[])
+
+#         # Stage 2: Finding Makefiles.
+#         makefile_dirs = ghcc.find_cfiles(build_root)
+#         if len(makefile_dirs) == 0:
+#             # Repo has no Makefiles, delete.
+#             shutil.rmtree(repo_path)
+#             flutes.log(f"No Makefiles found in {repo_full_name}, repository deleted", "warning")
+#             return PipelineResult(repo_info, clone_success=clone_success, makefiles=[])
+#         else:
+#             pass
+
+#         # Stage 3: Compile each Makefile.
+#         repo_binary_dir = os.path.join(binary_folder, repo_full_name)
+#         if not os.path.exists(repo_binary_dir):
+#             os.makedirs(repo_binary_dir)
+#         flutes.log(f"Starting compilation for {repo_full_name}...")
+
+#         if docker_batch_compile:
+#             makefiles = ghcc.docker_batch_compile(
+#                 repo_binary_dir, repo_path, compile_timeout, record_libraries, gcc_override_flags,
+#                 user_id=(repo_info.idx % 10000) + 30000,  # user IDs 30000 ~ 39999
+#                 exception_log_fn=functools.partial(exception_handler, repo_info=repo_info))
+#         else:
+#             makefiles = list(ghcc.compile_and_move(
+#                 repo_binary_dir, repo_path, makefile_dirs, compile_timeout, record_libraries, gcc_override_flags))
+#         num_succeeded = sum(makefile["success"] for makefile in makefiles)
+#         if record_libraries:
+#             library_log_path = os.path.join(repo_binary_dir, "libraries.txt")
+#             if os.path.exists(library_log_path):
+#                 with open(library_log_path) as f:
+#                     libraries = list(set(f.read().split()))
+#             else:
+#                 libraries = []
+#         num_binaries = sum(len(makefile["binaries"]) for makefile in makefiles)
+
+#         msg = f"{num_succeeded} ({len(makefiles)}) out of {len(makefile_dirs)} Makefile(s) " \
+#               f"in {repo_full_name} compiled (partially), yielding {num_binaries} binaries"
+#         flutes.log(msg, "success" if num_succeeded == len(makefile_dirs) else "warning")
+
+#         if record_metainfo:
+#             meta_info = PipelineMetaInfo({
+#                 "num_makefiles": len(makefile_dirs),
+#                 "has_gitmodules": os.path.exists(os.path.join(repo_path, ".gitmodules")),
+#                 "makefiles_using_automake": sum(
+#                     ghcc.contains_files(directory, ["configure.ac", "configure.in"]) for directory in makefile_dirs)
+#             })
+
+#         # Stage 4: Clean and zip repo.
+#         if max_archive_size is not None and repo_size > max_archive_size:
+#             shutil.rmtree(repo_path)
+#             flutes.log(f"Removed {repo_full_name} because repository size ({flutes.readable_size(repo_size)}) "
+#                        f"exceeds limits", "info")
+#         else:
+#             # Repository is already cleaned in the compile stage.
+#             os.makedirs(os.path.split(archive_path)[0], exist_ok=True)
+#             compress_success = False
+#             try:
+#                 flutes.run_command(["tar", f"c{tar_type_flag}f", archive_path, repo_folder_name],
+#                                    timeout=clone_timeout, cwd=clone_folder)
+#                 compress_success = True
+#             except subprocess.TimeoutExpired:
+#                 flutes.log(f"Compression timeout for {repo_full_name}, giving up", "error")
+#             except subprocess.CalledProcessError as e:
+#                 flutes.log(f"Unknown error when compressing {repo_full_name}. Captured output: '{e.output}'", "error")
+#             shutil.rmtree(repo_path)
+#             if compress_success:
+#                 flutes.log(f"Compressed {repo_full_name}, folder removed", "info")
+#             elif os.path.exists(archive_path):
+#                 os.remove(archive_path)
+
+#     return PipelineResult(repo_info, clone_success=clone_success, repo_size=repo_size,
+#                           makefiles=makefiles, libraries=libraries, meta_info=meta_info)
+#     pass
+
 
 @flutes.exception_wrapper(exception_handler)
 def clone_and_compile(repo_info: RepoInfo, clone_folder: str, binary_folder: str, archive_folder: str,
@@ -129,6 +300,7 @@ def clone_and_compile(repo_info: RepoInfo, clone_folder: str, binary_folder: str
     repo_full_name = f"{repo_info.repo_owner}/{repo_info.repo_name}"
     repo_folder_name = f"{repo_info.repo_owner}_____{repo_info.repo_name}"
     repo_path = os.path.join(clone_folder, repo_folder_name)
+    build_root = os.path.join(clone_folder, repo_folder_name)
     if compression_type == "xz":
         archive_extension = ".tar.xz"
         tar_type_flag = "J"
@@ -216,8 +388,20 @@ def clone_and_compile(repo_info: RepoInfo, clone_folder: str, binary_folder: str
         #              f"Repository deleted", "warning")
         #     return PipelineResult(repo_info, clone_success=clone_success, makefiles=[])
 
+        # Stage 1.5: make necessary out of build directory if enountered cmake
+        if ghcc.find_cmake(repo_path):
+            flutes.log(f"CMakeLists found in {repo_full_name}")
+            try:
+                build_root = os.path.join(repo_path, "ghcc_cmake_build_dir")
+                os.makedirs(build_root, exist_ok=True)
+                flutes.run_command(["cmake", "../"], timeout=clone_timeout, cwd=build_root)
+            except (subprocess.TimeoutExpired, subprocess.CalledProcessError) as e:
+                flutes.log(f"Unknown error when extracting {repo_full_name}. Captured output: '{e.output}'", "error")
+                shutil.rmtree(repo_path)
+                return PipelineResult(repo_info)  # return dummy info
+
         # Stage 2: Finding Makefiles.
-        makefile_dirs = ghcc.find_makefiles(repo_path)
+        makefile_dirs = ghcc.find_makefiles(build_root)
         if len(makefile_dirs) == 0:
             # Repo has no Makefiles, delete.
             shutil.rmtree(repo_path)

@@ -19,6 +19,7 @@ ELF_FILE_TAG = b"ELF"  # Linux
 
 __all__ = [
     "contains_files",
+    "find_cmake",
     "find_makefiles",
     "CompileErrorType",
     "CompileResult",
@@ -43,6 +44,15 @@ def contains_files(path: str, names: List[str]) -> bool:
     return False
 
 
+def find_cmake(path: str) -> bool:
+    """Check whether the current directory contains a CMakeLists.txt
+
+    :param path: The directory to check for.
+    :return: Whether the check succeeded.
+    """
+    return os.path.exists(os.path.join(path, 'CMakeLists.txt'))
+
+
 def find_makefiles(path: str) -> List[str]:
     r"""Find all subdirectories under the given directory that contains Makefiles.
 
@@ -54,7 +64,6 @@ def find_makefiles(path: str) -> List[str]:
         if contains_files(subdir, ["makefile"]):
             directories.append(subdir)
     return directories
-
 
 class CompileErrorType(Enum):
     Timeout = auto()
@@ -88,6 +97,16 @@ def _check_elf_fn(directory: str, file: str) -> bool:
     output = subprocess.check_output(["file", path], timeout=10)
     output = output[len(path):]  # first part is file name
     return ELF_FILE_TAG in output
+
+def _check_bitcode_fn(directory: str, file: str) -> bool:
+    r"""Checks whether the specified file is a llvm .bc file.
+
+    :param directory: The directory containing the Makefile.
+    :param file: The path to the file to check, relative to the directory.
+    :return: If ``True``, the file is a bitcode file.
+    """
+    path = os.path.join(directory, file)
+    return path.endswith(".bc")
 
 
 def _make_skeleton(directory: str, timeout: Optional[float] = None,

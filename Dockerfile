@@ -1,4 +1,5 @@
-FROM gcc:10.3-buster
+#FROM gcc:10.3-buster
+FROM gcc:latest
 
 # Install necessary packages.
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -10,7 +11,7 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 
 # Credit: https://denibertovic.com/posts/handling-permissions-with-docker-volumes/
 # Install `gosu` to avoid running as root.
-RUN gpg --keyserver keyserver.insect.com --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4
+RUN gpg --keyserver keyserver.ubuntu.com --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4
 RUN curl -o /usr/local/bin/gosu -SL "https://github.com/tianon/gosu/releases/download/1.4/gosu-$(dpkg --print-architecture)" \
     && curl -o /usr/local/bin/gosu.asc -SL "https://github.com/tianon/gosu/releases/download/1.4/gosu-$(dpkg --print-architecture).asc" \
     && gpg --verify /usr/local/bin/gosu.asc \
@@ -23,6 +24,7 @@ RUN apt-get install -y --no-install-recommends \
     vim \
     bmake
 RUN apt-get install -y --no-install-recommends \
+    clang \
     binutils-dev \
     bison \
     check \
@@ -30,7 +32,7 @@ RUN apt-get install -y --no-install-recommends \
     flex \
     flite1-dev \
     freeglut3-dev \
-    guile-2.0-dev \
+    #guile-2.0-dev \
     lib3ds-dev \
     liba52-0.7.4-dev \
     libaa1-dev \
@@ -84,7 +86,7 @@ RUN apt-get install -y --no-install-recommends \
     libcpg-dev \
     libcpufreq-dev \
     libcrack2-dev \
-    libcrmcommon-dev \
+    #libcrmcommon-dev \
     libcunit1-dev \
     libcups2-dev \
     libczmq-dev \
@@ -97,7 +99,7 @@ RUN apt-get install -y --no-install-recommends \
     libdlmcontrol-dev \
     libdnet-dev \
     libdrm-dev \
-    libdts-dev \
+    #libdts-dev \
     libdv4-dev \
     libdw-dev \
     libdwarf-dev \
@@ -152,7 +154,7 @@ RUN apt-get install -y --no-install-recommends \
     libibumad-dev \
     libibverbs-dev \
     libidn11-dev \
-    libigraph0-dev \
+    #libigraph0-dev \
     libiksemel-dev \
     libimlib2-dev \
     libimobiledevice-dev \
@@ -180,7 +182,7 @@ RUN apt-get install -y --no-install-recommends \
     libldap2-dev \
     libldns-dev \
     libleveldb-dev \
-    liblivemedia-dev \
+    #liblivemedia-dev \
     liblo-dev \
     liblua5.1-0-dev \
     liblua5.2-dev \
@@ -205,7 +207,7 @@ RUN apt-get install -y --no-install-recommends \
     libmnl-dev \
     libmodbus-dev \
     libmodplug-dev \
-    libmowgli-2-dev \
+    #libmowgli-2-dev \
     libmp3lame-dev \
     libmpc-dev \
     libmpcdec-dev \
@@ -291,7 +293,7 @@ RUN apt-get install -y --no-install-recommends \
     libsnappy-dev \
     libsndfile1-dev \
     libsndio-dev \
-    libsocks4 \
+    #libsocks4 \
     libsodium-dev \
     libsoil-dev \
     libspandsp-dev \
@@ -300,7 +302,7 @@ RUN apt-get install -y --no-install-recommends \
     libspeexdsp-dev \
     libspiro-dev \
     libsprng2-dev \
-    libsqlite0-dev \
+    #libsqlite0-dev \
     libss7-dev \
     libssh-dev \
     libssh2-1-dev \
@@ -316,7 +318,7 @@ RUN apt-get install -y --no-install-recommends \
     libtdb-dev \
     libtheora-dev \
     libtokyocabinet-dev \
-    libtokyotyrant-dev \
+    #libtokyotyrant-dev \
     libtommath-dev \
     libtonezone-dev \
     libtpm-unseal-dev \
